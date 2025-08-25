@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineSuggest</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0a0a0a; /* Fundo preto fosco */
+        }
+        /* Transições suaves */
+        #sidebar, #addFavoriteModal, #detailsModal, .nav-link, .add-favorite-btn, .group { 
+            transition: all 0.3s ease-in-out; 
+        }
+        .sidebar-open { transform: translateX(0); }
+        .sidebar-closed { transform: translateX(-100%); }
+        .modal-hidden { opacity: 0; pointer-events: none; transform: scale(0.95); }
+        .modal-visible { opacity: 1; pointer-events: auto; transform: scale(1); }
+        
+        /* Scrollbar minimalista */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; } /* Azul ardósia fosco */
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        /* Loader com cores foscas */
+        .loader {
+            border: 4px solid #475569; /* Azul ardósia */
+            border-top: 4px solid #b91c1c; /* Vermelho com mais vida */
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-[#0a0a0a] text-gray-200 overflow-hidden h-screen">
+
+    <!-- Estrutura principal do App -->
+    <div class="relative h-full w-full flex">
+        <aside id="sidebar" class="bg-black w-64 absolute inset-y-0 left-0 z-30 sidebar-closed md:relative md:translate-x-0 border-r border-gray-900">
+            <div class="p-6">
+                <!-- LOGO SVG CORRIGIDA -->
+                <svg viewBox="0 0 250 150" class="w-40 mx-auto" alt="CineSuggest Logo">
+                    <g transform="translate(25, 10)">
+                        <!-- Clapperboard -->
+                        <g fill="#d92428">
+                            <path d="M162.5,2.5h-125C34.1,2.5,31,5.6,31,9.1v10.4l131.5,0.1V9.1C162.5,5.6,159.4,2.5,162.5,2.5z" transform="rotate(-15, 96.75, 11.05)"/>
+                            <path d="M168.9,29.9H31.1c-3.4,0-6.1,2.8-6.1,6.1v27.2c0,3.4,2.8,6.1,6.1,6.1h137.8c3.4,0,6.1-2.8,6.1-6.1V36.1 C175,32.7,172.2,29.9,168.9,29.9z"/>
+                        </g>
+                        <!-- Stripes -->
+                        <g fill="#000000">
+                            <path d="M125.8,2.5 L112.1,20.1h8.2L134,2.5h-8.2z" transform="rotate(-15, 122.95, 11.3)"/>
+                            <path d="M98.2,2.5 L84.5,20.1h8.2L106.3,2.5h-8.1z" transform="rotate(-15, 95.35, 11.3)"/>
+                            <path d="M70.5,2.5 L56.8,20.1h8.2L79.1,2.5h-8.6z" transform="rotate(-15, 67.65, 11.3)"/>
+                        </g>
+                        <!-- Circles -->
+                        <circle cx="39.5" cy="11.5" r="3" fill="#000000" transform="rotate(-15, 39.5, 11.5)"/>
+                        <circle cx="49.5" cy="11.5" r="3" fill="#000000" transform="rotate(-15, 49.5, 11.5)"/>
+                        <!-- Play Button -->
+                        <path d="M91.5,41.2l18.8,9.4l-18.8,9.4V41.2z" fill="#2463eb"/>
+                        <!-- Text -->
+                        <text x="30" y="110" font-family="Inter, sans-serif" font-size="28" font-weight="800" fill="#d92428">Cine</text>
+                        <text x="100" y="110" font-family="Inter, sans-serif" font-size="28" font-weight="800" fill="#2463eb">Suggest</text>
+                    </g>
+                </svg>
+            </div>
+            <nav class="mt-4">
+                <a href="#" class="nav-link flex items-center py-3 px-6 text-lg text-gray-300 hover:bg-slate-800 hover:text-white border-l-4 border-transparent hover:border-slate-600" data-category="filmes">
+                    <i class="fas fa-video w-6 mr-3"></i> Filmes
+                </a>
+                <a href="#" class="nav-link flex items-center py-3 px-6 text-lg text-gray-300 hover:bg-slate-800 hover:text-white border-l-4 border-transparent hover:border-slate-600" data-category="series">
+                    <i class="fas fa-tv w-6 mr-3"></i> Séries
+                </a>
+            </nav>
+        </aside>
+
+        <main class="flex-1 flex flex-col h-full overflow-hidden bg-[#0a0a0a]">
+            <header class="bg-black p-4 flex items-center justify-between z-10 border-b border-gray-900">
+                <button id="menuButton" class="text-white text-2xl md:hidden">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h2 id="categoryTitle" class="text-xl font-bold text-red-700 tracking-wider">Filmes</h2>
+                <div></div>
+            </header>
+
+            <div id="main-content" class="flex-1 overflow-y-auto p-4 md:p-6">
+                <div id="filmes" class="category-content"></div>
+                <div id="series" class="category-content hidden"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Fundo de sobreposição para todos os modais -->
+    <div id="overlay" class="fixed inset-0 bg-black bg-opacity-70 z-20 hidden"></div>
+
+    <!-- Modal de Busca -->
+    <div id="addFavoriteModal" class="fixed inset-0 z-40 flex items-center justify-center p-4 modal-hidden">
+        <div class="bg-black border border-slate-800 rounded-lg w-full max-w-md transform shadow-2xl shadow-slate-900/50">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold text-slate-300">Buscar e Adicionar Favorito</h3>
+                    <button id="closeSearchModalButton" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+                </div>
+                <div class="relative">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"></i>
+                    <input type="search" id="searchInput" placeholder="Digite o nome do filme, série..." class="w-full bg-gray-900 border border-gray-700 rounded-md pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-700">
+                </div>
+                <div id="searchResults" class="mt-4 max-h-64 overflow-y-auto"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Detalhes -->
+    <div id="detailsModal" class="fixed inset-0 z-40 flex items-center justify-center p-4 modal-hidden">
+        <div class="bg-black border border-gray-800 rounded-lg w-full max-w-3xl transform max-h-[90vh] flex flex-col shadow-2xl shadow-red-900/50">
+            <div class="flex justify-end p-2 absolute top-0 right-0 z-10">
+                <button id="closeDetailsModalButton" class="text-gray-400 hover:text-white text-3xl bg-black/50 rounded-full w-10 h-10 flex items-center justify-center">&times;</button>
+            </div>
+            <div id="detailsModalContent" class="overflow-y-auto">
+                <!-- Conteúdo dos detalhes será injetado aqui -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- CONFIGURAÇÃO DA API ---
+            const TMDB_API_KEY = '952f29e3c0dafb854133b8b814ec76b6'; 
+            
+            // Chave da API do Google Gemini adicionada.
+            const GEMINI_API_KEY = 'AIzaSyDbFn51mvzvjuGpSo3LAvse046a7ci_6Mc';
+
+            const API_BASE_URL = 'https://api.themoviedb.org/3';
+            const IMG_BASE_URL = 'https://image.tmdb.org/t/p/w500';
+            const LANG = 'pt-BR';
+
+            // --- ESTADO DA APLICAÇÃO ---
+            const favoritesKey = 'cine-sugestoes-favorites-v3';
+            
+            const migrateFavorites = () => {
+                const oldFavorites = JSON.parse(localStorage.getItem('cine-sugestoes-favorites-v2'));
+                if (oldFavorites && oldFavorites['mini-series']) {
+                    const newFavorites = {
+                        filmes: oldFavorites.filmes || [],
+                        series: [...(oldFavorites.series || []), ...oldFavorites['mini-series']]
+                    };
+                    const uniqueSeries = Array.from(new Set(newFavorites.series.map(s => s.id))).map(id => newFavorites.series.find(s => s.id === id));
+                    newFavorites.series = uniqueSeries;
+                    localStorage.setItem(favoritesKey, JSON.stringify(newFavorites));
+                    localStorage.removeItem('cine-sugestoes-favorites-v2');
+                    return newFavorites;
+                }
+                return null;
+            };
+
+            const initialFavorites = migrateFavorites() || JSON.parse(localStorage.getItem(favoritesKey)) || { filmes: [], series: [] };
+
+            const state = {
+                currentCategory: 'filmes',
+                favorites: initialFavorites,
+                searchTimeout: null,
+                genreMap: new Map()
+            };
+
+            // --- ELEMENTOS DO DOM ---
+            const sidebar = document.getElementById('sidebar');
+            const menuButton = document.getElementById('menuButton');
+            const overlay = document.getElementById('overlay');
+            const navLinks = document.querySelectorAll('.nav-link');
+            const categoryTitle = document.getElementById('categoryTitle');
+            const mainContent = document.getElementById('main-content');
+            
+            const searchModal = document.getElementById('addFavoriteModal');
+            const closeSearchModalButton = document.getElementById('closeSearchModalButton');
+            const searchInput = document.getElementById('searchInput');
+            const searchResultsContainer = document.getElementById('searchResults');
+
+            const detailsModal = document.getElementById('detailsModal');
+            const closeDetailsModalButton = document.getElementById('closeDetailsModalButton');
+            const detailsModalContent = document.getElementById('detailsModalContent');
+
+            // --- FUNÇÕES DA API ---
+            const isTmdbApiKeyValid = () => TMDB_API_KEY && TMDB_API_KEY !== 'SUA_CHAVE_API_AQUI';
+            const isGeminiApiKeyValid = () => GEMINI_API_KEY && GEMINI_API_KEY !== 'COLE_SUA_CHAVE_DA_API_GEMINI_AQUI';
+
+            async function fetchFromApi(endpoint, apiKey) {
+                if (!apiKey) return null;
+                try {
+                    const separator = endpoint.includes('?') ? '&' : '?';
+                    const url = `${API_BASE_URL}${endpoint}${separator}api_key=${apiKey}&language=${LANG}`;
+                    const response = await fetch(url);
+                    if (response.status === 404) {
+                        // ID inválido da IA, não é um erro crítico. Apenas ignore.
+                        return null;
+                    }
+                    if (!response.ok) {
+                        // Outro tipo de erro, este sim deve ser logado.
+                        throw new Error(`Falha na requisição para: ${endpoint} com status ${response.status}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    console.error(error);
+                    return null;
+                }
+            }
+
+            async function fetchGenres() {
+                const movieGenres = await fetchFromApi('/genre/movie/list', TMDB_API_KEY);
+                const tvGenres = await fetchFromApi('/genre/tv/list', TMDB_API_KEY);
+                if (movieGenres) movieGenres.genres.forEach(g => state.genreMap.set(g.id, g.name));
+                if (tvGenres) tvGenres.genres.forEach(g => state.genreMap.set(g.id, g.name));
+            }
+            
+            const getGenreNames = (genreIds) => (genreIds || []).map(id => state.genreMap.get(id)).filter(Boolean).join(', ');
+
+            async function searchTMDb(query, category) {
+                const type = category === 'filmes' ? 'movie' : 'tv';
+                const endpoint = `/search/${type}?query=${encodeURIComponent(query)}`;
+                const data = await fetchFromApi(endpoint, TMDB_API_KEY);
+                return data ? data.results : [];
+            }
+
+            async function fetchSuggestions(itemId, category) {
+                const type = category === 'filmes' ? 'movie' : 'tv';
+                const data = await fetchFromApi(`/${type}/${itemId}/recommendations`, TMDB_API_KEY);
+                return data ? data.results.slice(0, 5) : [];
+            }
+            
+            async function fetchDetails(itemId, category) {
+                const type = category === 'filmes' ? 'movie' : 'tv';
+                return await fetchFromApi(`/${type}/${itemId}?append_to_response=watch/providers`, TMDB_API_KEY);
+            }
+
+            // --- FUNÇÕES PRINCIPAIS DE RENDERIZAÇÃO ---
+            const saveFavorites = () => localStorage.setItem(favoritesKey, JSON.stringify(state.favorites));
+
+            const renderCategoryContent = async (category) => {
+                const container = document.getElementById(category);
+                if (!container) return;
+                const favorites = state.favorites[category];
+                let suggestions = [];
+
+                if (favorites.length > 0) {
+                    const lastFavorite = favorites[favorites.length - 1];
+                    suggestions = await fetchSuggestions(lastFavorite.id, category);
+                }
+
+                container.innerHTML = `
+                    <div class="mb-12">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-2xl font-bold text-slate-300">Meus Favoritos</h3>
+                            <button class="add-favorite-btn bg-red-700 hover:bg-red-600 text-white font-bold py-2 px-5 rounded-lg flex items-center shadow-[0_0_15px_rgba(185,28,28,0.4)] hover:shadow-[0_0_20px_rgba(185,28,28,0.6)]">
+                                <i class="fas fa-plus mr-2"></i> Adicionar
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
+                            ${favorites.length > 0 ? favorites.map(fav => createCard(fav, category, true)).join('') : '<p class="col-span-full text-gray-400">Busque e adicione seu primeiro favorito.</p>'}
+                        </div>
+                    </div>
+                    
+                    <!-- Seção da IA -->
+                    <div class="mb-12">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-2xl font-bold text-slate-300">Sugestão da IA</h3>
+                            <button id="ai-suggest-btn-${category}" class="bg-blue-700 hover:bg-blue-600 text-white font-bold py-2 px-5 rounded-lg flex items-center shadow-[0_0_15px_rgba(29,78,216,0.4)] hover:shadow-[0_0_20px_rgba(29,78,216,0.6)]" ${favorites.length === 0 ? 'disabled' : ''}>
+                                <i class="fas fa-wand-magic-sparkles mr-2"></i> Gerar Sugestão
+                            </button>
+                        </div>
+                        <div id="ai-suggestions-container-${category}" class="bg-gray-900/50 p-4 rounded-lg min-h-[100px]">
+                             <p class="text-gray-400 text-center">Adicione favoritos e clique em "Gerar Sugestão" para receber recomendações da nossa IA.</p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-2xl font-bold text-slate-300 mb-4">Recomendações Padrão</h3>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
+                            ${suggestions.length > 0 ? suggestions.map(sug => createCard(sug, category, false)).join('') : '<p class="col-span-full text-gray-400">Adicione um favorito para receber sugestões.</p>'}
+                        </div>
+                    </div>
+                `;
+                container.querySelector('.add-favorite-btn').addEventListener('click', openSearchModal);
+                container.querySelector(`#ai-suggest-btn-${category}`).addEventListener('click', handleAiSuggestClick);
+            };
+
+            const createCard = (item, category, isFavorite = false) => {
+                const title = item.title || item.name;
+                const posterPath = item.poster_path ? `${IMG_BASE_URL}${item.poster_path}` : 'https://placehold.co/500x750/111827/4B5563?text=Sem+Capa';
+                const rating = item.vote_average ? item.vote_average.toFixed(1) : 'N/A';
+                
+                const removeButtonHtml = isFavorite ? `
+                    <button class="remove-favorite-btn absolute top-2 left-2 bg-black/70 text-white rounded-full w-7 h-7 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10" data-id="${item.id}" data-category="${category}" title="Remover dos Favoritos">
+                        <i class="fas fa-times text-sm"></i>
+                    </button>
+                ` : '';
+
+                return `
+                    <div class="bg-gray-900 rounded-lg overflow-hidden border border-gray-900 hover:border-slate-700 group cursor-pointer hover:shadow-2xl hover:shadow-slate-900/50 relative" data-id="${item.id}" data-category="${category}">
+                        ${removeButtonHtml}
+                        <div class="relative">
+                            <img src="${posterPath}" alt="${title}" class="w-full h-48 sm:h-64 object-cover">
+                            <div class="absolute top-2 right-2 bg-black/70 rounded-full px-2 py-1 text-xs font-bold flex items-center">
+                                <i class="fas fa-star text-yellow-400 mr-1"></i>
+                                <span>${rating}</span>
+                            </div>
+                        </div>
+                        <div class="p-3">
+                            <h4 class="font-bold text-md truncate text-gray-200">${title}</h4>
+                        </div>
+                    </div>
+                `;
+            };
+
+            const renderDetailsModal = (details) => {
+                const providers = details['watch/providers']?.results?.BR;
+                const title = details.title || details.name;
+                const releaseDate = details.release_date || details.first_air_date;
+                const year = releaseDate ? new Date(releaseDate).getFullYear() : 'N/A';
+                const posterPath = details.poster_path ? `${IMG_BASE_URL}${details.poster_path}` : 'https://placehold.co/500x750/111827/4B5563?text=Sem+Capa';
+                const backdropPath = details.backdrop_path ? `https://image.tmdb.org/t/p/w1280${details.backdrop_path}` : '';
+                const rating = details.vote_average ? details.vote_average.toFixed(1) : 'N/A';
+                
+                const renderProviders = (providerList) => {
+                    if (!providerList || providerList.length === 0) return '';
+                    return providerList.map(p => `<img src="${IMG_BASE_URL}${p.logo_path}" alt="${p.provider_name}" class="w-12 h-12 rounded-lg" title="${p.provider_name}">`).join('');
+                };
+
+                const streamingHtml = providers?.flatrate ? `<h4 class="font-semibold text-lg mb-2 text-slate-300">Assinatura</h4><div class="flex flex-wrap gap-3">${renderProviders(providers.flatrate)}</div>` : '<p class="text-gray-400">Não disponível em streamings por assinatura no momento.</p>';
+
+                detailsModalContent.innerHTML = `
+                    <div class="relative">
+                        <img src="${backdropPath}" alt="" class="w-full h-48 md:h-64 object-cover opacity-10">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black via-black/90 to-transparent"></div>
+                    </div>
+                    <div class="p-6 relative -mt-24">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="md:col-span-1">
+                                <img src="${posterPath}" alt="${title}" class="w-full rounded-lg -mt-12 border-4 border-gray-900">
+                            </div>
+                            <div class="md:col-span-2">
+                                <h2 class="text-3xl font-bold text-white">${title} <span class="text-gray-300 font-normal">(${year})</span></h2>
+                                <div class="flex items-center gap-4 my-2 text-gray-300">
+                                    <span><i class="fas fa-star text-yellow-400 mr-1"></i> ${rating}</span>
+                                    <span>${(details.genres || []).map(g => g.name).join(', ')}</span>
+                                </div>
+                                <h3 class="text-xl font-semibold mt-4 mb-2 text-red-700">Sinopse</h3>
+                                <p class="text-gray-300 max-h-32 overflow-y-auto">${details.overview || 'Sinopse não disponível.'}</p>
+                                
+                                <h3 class="text-xl font-semibold mt-6 mb-2 text-red-700">Onde Assistir</h3>
+                                <div>${streamingHtml}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            };
+
+            // --- Funções de UI (Menu e Modais) ---
+            const openSidebar = () => { sidebar.classList.add('sidebar-open'); sidebar.classList.remove('sidebar-closed'); overlay.classList.remove('hidden'); };
+            const closeSidebar = () => { sidebar.classList.remove('sidebar-open'); sidebar.classList.add('sidebar-closed'); if (searchModal.classList.contains('modal-hidden') && detailsModal.classList.contains('modal-hidden')) overlay.classList.add('hidden'); };
+            const openSearchModal = () => { searchModal.classList.remove('modal-hidden'); searchModal.classList.add('modal-visible'); overlay.classList.remove('hidden'); setTimeout(() => searchInput.focus(), 100); };
+            const closeSearchModal = () => { searchModal.classList.add('modal-hidden'); searchModal.classList.remove('modal-visible'); if (detailsModal.classList.contains('modal-hidden') && sidebar.classList.contains('sidebar-closed')) overlay.classList.add('hidden'); searchInput.value = ''; searchResultsContainer.innerHTML = ''; };
+            const openDetailsModal = async (itemId, category) => {
+                detailsModal.classList.remove('modal-hidden'); detailsModal.classList.add('modal-visible');
+                overlay.classList.remove('hidden');
+                detailsModalContent.innerHTML = '<div class="flex justify-center p-10"><div class="loader"></div></div>';
+                const details = await fetchDetails(itemId, category);
+                if (details) { renderDetailsModal(details); } 
+                else { detailsModalContent.innerHTML = '<p class="text-center text-red-400">Não foi possível carregar os detalhes.</p>'; }
+            };
+            const closeDetailsModal = () => { detailsModal.classList.add('modal-hidden'); detailsModal.classList.remove('modal-visible'); if (searchModal.classList.contains('modal-hidden') && sidebar.classList.contains('sidebar-closed')) overlay.classList.add('hidden'); };
+
+            const switchCategory = (category) => {
+                state.currentCategory = category;
+                document.querySelectorAll('.category-content').forEach(el => el.classList.add('hidden'));
+                document.getElementById(category).classList.remove('hidden');
+                categoryTitle.textContent = { filmes: 'Filmes', series: 'Séries' }[category];
+                renderAllCategories();
+                closeSidebar();
+            };
+
+            const renderAllCategories = () => { ['filmes', 'series'].forEach(renderCategoryContent); };
+
+            // --- Lógica de Busca ---
+            const handleSearch = (e) => {
+                const query = e.target.value.trim();
+                clearTimeout(state.searchTimeout);
+                if (query.length < 2) { searchResultsContainer.innerHTML = ''; return; }
+                searchResultsContainer.innerHTML = '<div class="flex justify-center p-4"><div class="loader"></div></div>';
+                state.searchTimeout = setTimeout(async () => {
+                    const results = await searchTMDb(query, state.currentCategory);
+                    const favoriteIds = new Set(state.favorites[state.currentCategory].map(fav => fav.id));
+                    const filteredResults = results.filter(item => !favoriteIds.has(item.id));
+                    renderSearchResults(filteredResults);
+                }, 500);
+            };
+
+            const renderSearchResults = (results) => {
+                if (results.length === 0) { searchResultsContainer.innerHTML = '<p class="text-gray-400 p-3">Nenhum resultado encontrado.</p>'; return; }
+                searchResultsContainer.innerHTML = results.map(item => {
+                    const title = item.title || item.name;
+                    const posterPath = item.poster_path ? `${IMG_BASE_URL}${item.poster_path}` : 'https://placehold.co/80x120/111827/4B5563?text=?';
+                    const genres = getGenreNames(item.genre_ids || []);
+                    const escapedItem = JSON.stringify(item).replace(/'/g, '&#39;');
+                    return `
+                    <div class="search-result-item flex items-center p-2 rounded-md hover:bg-slate-800 cursor-pointer" data-item='${escapedItem}'>
+                        <img src="${posterPath}" class="w-10 h-14 object-cover rounded-sm mr-3">
+                        <div class="flex-1"><h5 class="font-semibold text-gray-200">${title}</h5><p class="text-sm text-gray-400">${genres}</p></div>
+                    </div>`;
+                }).join('');
+            };
+
+            const handleAddFromSearch = (e) => {
+                const resultItem = e.target.closest('.search-result-item');
+                if (!resultItem) return;
+                const itemToAdd = JSON.parse(resultItem.dataset.item.replace(/&#39;/g, "'"));
+                state.favorites[state.currentCategory].push(itemToAdd);
+                saveFavorites();
+                renderCategoryContent(state.currentCategory);
+                closeSearchModal();
+            };
+            
+            // --- LÓGICA DA IA ---
+            const handleAiSuggestClick = async (e) => {
+                const category = state.currentCategory;
+                const container = document.getElementById(`ai-suggestions-container-${category}`);
+                const button = e.target.closest('button');
+
+                if (!isGeminiApiKeyValid()) {
+                    container.innerHTML = `<p class="text-yellow-400 text-center">Por favor, adicione sua chave da API do Google Gemini no código para usar esta funcionalidade.</p>`;
+                    return;
+                }
+                
+                button.disabled = true;
+                container.innerHTML = '<div class="flex justify-center p-10"><div class="loader"></div></div>';
+
+                const favorites = state.favorites[category];
+                const favoriteTitles = favorites.map(f => f.title || f.name).join(', ');
+                const favoriteGenres = [...new Set(favorites.flatMap(f => f.genre_ids ? getGenreNames(f.genre_ids).split(', ') : []))].join(', ');
+
+                const prompt = `Aja como uma IA curadora de cinema de elite. Sua tarefa é analisar a lista de favoritos de um usuário e sugerir 5 novos ${category === 'filmes' ? 'filmes' : 'séries'} que sejam extremamente fiéis em gênero, tom, e estilo. É crucial que você NÃO sugira nenhum dos seguintes títulos que já estão na lista de favoritos: ${favoriteTitles}. Baseado nos favoritos (${favoriteTitles}) e nos gêneros preferidos (${favoriteGenres}), encontre 5 sugestões. Para cada uma, forneça o título original, o ID do TMDb (um ID válido e existente), e uma justificativa concisa que explique a conexão temática ou estilística com um item específico da lista de favoritos. Formate sua resposta como um JSON array, onde cada objeto tem "tmdbId", "title" e "justification".`;
+
+                try {
+                    const payload = {
+                        contents: [{ role: "user", parts: [{ text: prompt }] }],
+                        generationConfig: {
+                            responseMimeType: "application/json",
+                        }
+                    };
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${GEMINI_API_KEY}`;
+                    
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) throw new Error("Falha ao contatar a IA.");
+
+                    const result = await response.json();
+                    const jsonText = result.candidates[0].content.parts[0].text;
+                    const suggestions = JSON.parse(jsonText);
+                    
+                    await renderAiSuggestions(suggestions, category);
+
+                } catch (error) {
+                    console.error("Erro na IA:", error);
+                    container.innerHTML = `<p class="text-red-400 text-center">Ocorreu um erro ao gerar as sugestões. Tente novamente.</p>`;
+                } finally {
+                    button.disabled = false;
+                }
+            };
+
+            const renderAiSuggestions = async (suggestions, category) => {
+                const container = document.getElementById(`ai-suggestions-container-${category}`);
+                
+                if (!suggestions || suggestions.length === 0) {
+                    container.innerHTML = '<p class="text-gray-400 text-center">A IA não conseguiu gerar sugestões. Tente novamente.</p>';
+                    return;
+                }
+
+                const detailPromises = suggestions.map(s => fetchDetails(s.tmdbId, category));
+                const detailedItems = await Promise.all(detailPromises);
+
+                const favoriteIds = new Set(state.favorites[category].map(fav => fav.id));
+                const finalSuggestions = detailedItems.filter(item => item && !favoriteIds.has(item.id));
+
+                if (finalSuggestions.length === 0) {
+                     container.innerHTML = '<p class="text-gray-400 text-center">A IA gerou sugestões, mas elas já estão nos seus favoritos. Tente adicionar mais títulos!</p>';
+                     return;
+                }
+
+                let html = `<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">`;
+                finalSuggestions.forEach(item => {
+                    html += createCard(item, category, false);
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            };
+
+
+            // --- NOVA FUNÇÃO PARA REMOVER FAVORITO ---
+            const removeFavorite = (itemId, category) => {
+                const idToRemove = parseInt(itemId, 10);
+                state.favorites[category] = state.favorites[category].filter(item => item.id !== idToRemove);
+                saveFavorites();
+                renderCategoryContent(category);
+            };
+
+            // --- INICIALIZAÇÃO E EVENTOS ---
+            async function init() {
+                if (!isTmdbApiKeyValid()) { 
+                    mainContent.innerHTML = `<div class="bg-red-800 border border-red-600 text-white px-4 py-3 rounded-lg relative mb-6" role="alert">
+                    <strong class="font-bold">Erro Crítico!</strong>
+                    <span class="block sm:inline">A chave da API do TMDb não foi configurada corretamente no código.</span>
+                </div>`;
+                    return;
+                }
+                await fetchGenres();
+                renderAllCategories();
+                document.getElementById(state.currentCategory).classList.remove('hidden');
+                
+                menuButton.addEventListener('click', openSidebar);
+                overlay.addEventListener('click', () => { closeSidebar(); closeSearchModal(); closeDetailsModal(); });
+                navLinks.forEach(link => { link.addEventListener('click', (e) => { e.preventDefault(); switchCategory(e.currentTarget.dataset.category); }); });
+                
+                closeSearchModalButton.addEventListener('click', closeSearchModal);
+                closeDetailsModalButton.addEventListener('click', closeDetailsModal);
+                
+                searchInput.addEventListener('input', handleSearch);
+                searchResultsContainer.addEventListener('click', handleAddFromSearch);
+                
+                // Event listener atualizado para lidar com cliques nos cards e no botão de remover
+                mainContent.addEventListener('click', (e) => {
+                    const removeBtn = e.target.closest('.remove-favorite-btn');
+                    if (removeBtn) {
+                        e.stopPropagation(); // Impede que o modal de detalhes abra
+                        const { id, category } = removeBtn.dataset;
+                        removeFavorite(id, category);
+                        return;
+                    }
+
+                    const card = e.target.closest('.group');
+                    if (card) {
+                        openDetailsModal(card.dataset.id, card.dataset.category);
+                    }
+                });
+            };
+
+            init();
+        });
+    </script>
+</body>
+</html>
