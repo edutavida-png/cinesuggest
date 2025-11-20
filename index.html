@@ -1,561 +1,459 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CineSuggest</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #0a0a0a; /* Fundo preto fosco */
-        }
-        /* Transições suaves */
-        #sidebar, #addFavoriteModal, #detailsModal, .nav-link, .add-favorite-btn, .group { 
-            transition: all 0.3s ease-in-out; 
-        }
-        .sidebar-open { transform: translateX(0); }
-        .sidebar-closed { transform: translateX(-100%); }
-        .modal-hidden { opacity: 0; pointer-events: none; transform: scale(0.95); }
-        .modal-visible { opacity: 1; pointer-events: auto; transform: scale(1); }
-        
-        /* Scrollbar minimalista */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #0a0a0a; }
-        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; } /* Azul ardósia fosco */
-        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
-
-        /* Loader com cores foscas */
-        .loader {
-            border: 4px solid #475569; /* Azul ardósia */
-            border-top: 4px solid #b91c1c; /* Vermelho com mais vida */
-            border-radius: 50%;
-            width: 32px;
-            height: 32px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Telecom Field PWA</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0f172a">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.4.0/dist/maplibre-gl.css" />
+  <style>
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    .bottom-sheet { transition: transform 0.3s ease, opacity 0.3s ease; }
+    .bottom-sheet.hidden { transform: translateY(100%); opacity: 0; }
+    .bottom-sheet.visible { transform: translateY(0); opacity: 1; }
+  </style>
 </head>
-<body class="bg-[#0a0a0a] text-gray-200 overflow-hidden h-screen">
-
-    <!-- Estrutura principal do App -->
-    <div class="relative h-full w-full flex">
-        <aside id="sidebar" class="bg-black w-64 absolute inset-y-0 left-0 z-30 sidebar-closed md:relative md:translate-x-0 border-r border-gray-900">
-            <div class="p-6">
-                <!-- LOGO SVG CORRIGIDA -->
-                <svg viewBox="0 0 250 150" class="w-40 mx-auto" alt="CineSuggest Logo">
-                    <g transform="translate(25, 10)">
-                        <!-- Clapperboard -->
-                        <g fill="#d92428">
-                            <path d="M162.5,2.5h-125C34.1,2.5,31,5.6,31,9.1v10.4l131.5,0.1V9.1C162.5,5.6,159.4,2.5,162.5,2.5z" transform="rotate(-15, 96.75, 11.05)"/>
-                            <path d="M168.9,29.9H31.1c-3.4,0-6.1,2.8-6.1,6.1v27.2c0,3.4,2.8,6.1,6.1,6.1h137.8c3.4,0,6.1-2.8,6.1-6.1V36.1 C175,32.7,172.2,29.9,168.9,29.9z"/>
-                        </g>
-                        <!-- Stripes -->
-                        <g fill="#000000">
-                            <path d="M125.8,2.5 L112.1,20.1h8.2L134,2.5h-8.2z" transform="rotate(-15, 122.95, 11.3)"/>
-                            <path d="M98.2,2.5 L84.5,20.1h8.2L106.3,2.5h-8.1z" transform="rotate(-15, 95.35, 11.3)"/>
-                            <path d="M70.5,2.5 L56.8,20.1h8.2L79.1,2.5h-8.6z" transform="rotate(-15, 67.65, 11.3)"/>
-                        </g>
-                        <!-- Circles -->
-                        <circle cx="39.5" cy="11.5" r="3" fill="#000000" transform="rotate(-15, 39.5, 11.5)"/>
-                        <circle cx="49.5" cy="11.5" r="3" fill="#000000" transform="rotate(-15, 49.5, 11.5)"/>
-                        <!-- Play Button -->
-                        <path d="M91.5,41.2l18.8,9.4l-18.8,9.4V41.2z" fill="#2463eb"/>
-                        <!-- Text -->
-                        <text x="30" y="110" font-family="Inter, sans-serif" font-size="28" font-weight="800" fill="#d92428">Cine</text>
-                        <text x="100" y="110" font-family="Inter, sans-serif" font-size="28" font-weight="800" fill="#2463eb">Suggest</text>
-                    </g>
-                </svg>
-            </div>
-            <nav class="mt-4">
-                <a href="#" class="nav-link flex items-center py-3 px-6 text-lg text-gray-300 hover:bg-slate-800 hover:text-white border-l-4 border-transparent hover:border-slate-600" data-category="filmes">
-                    <i class="fas fa-video w-6 mr-3"></i> Filmes
-                </a>
-                <a href="#" class="nav-link flex items-center py-3 px-6 text-lg text-gray-300 hover:bg-slate-800 hover:text-white border-l-4 border-transparent hover:border-slate-600" data-category="series">
-                    <i class="fas fa-tv w-6 mr-3"></i> Séries
-                </a>
-            </nav>
-        </aside>
-
-        <main class="flex-1 flex flex-col h-full overflow-hidden bg-[#0a0a0a]">
-            <header class="bg-black p-4 flex items-center justify-between z-10 border-b border-gray-900">
-                <button id="menuButton" class="text-white text-2xl md:hidden">
-                    <i class="fas fa-bars"></i>
-                </button>
-                <h2 id="categoryTitle" class="text-xl font-bold text-red-700 tracking-wider">Filmes</h2>
-                <div></div>
-            </header>
-
-            <div id="main-content" class="flex-1 overflow-y-auto p-4 md:p-6">
-                <div id="filmes" class="category-content"></div>
-                <div id="series" class="category-content hidden"></div>
-            </div>
-        </main>
-    </div>
-
-    <!-- Fundo de sobreposição para todos os modais -->
-    <div id="overlay" class="fixed inset-0 bg-black bg-opacity-70 z-20 hidden"></div>
-
-    <!-- Modal de Busca -->
-    <div id="addFavoriteModal" class="fixed inset-0 z-40 flex items-center justify-center p-4 modal-hidden">
-        <div class="bg-black border border-slate-800 rounded-lg w-full max-w-md transform shadow-2xl shadow-slate-900/50">
-            <div class="p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-bold text-slate-300">Buscar e Adicionar Favorito</h3>
-                    <button id="closeSearchModalButton" class="text-gray-400 hover:text-white text-2xl">&times;</button>
-                </div>
-                <div class="relative">
-                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"></i>
-                    <input type="search" id="searchInput" placeholder="Digite o nome do filme, série..." class="w-full bg-gray-900 border border-gray-700 rounded-md pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-700">
-                </div>
-                <div id="searchResults" class="mt-4 max-h-64 overflow-y-auto"></div>
-            </div>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+  <div class="flex flex-col min-h-screen">
+    <header class="bg-slate-900 border-b border-slate-800 shadow-lg shadow-black/30 sticky top-0 z-20">
+      <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-500 flex items-center justify-center text-2xl font-bold">PWA</div>
+          <div>
+            <h1 class="text-xl font-bold">Telecom Field Manager</h1>
+            <p class="text-sm text-slate-400">Cadastro, mapas, checklist e relatórios offline/online</p>
+          </div>
         </div>
-    </div>
-    
-    <!-- Modal de Detalhes -->
-    <div id="detailsModal" class="fixed inset-0 z-40 flex items-center justify-center p-4 modal-hidden">
-        <div class="bg-black border border-gray-800 rounded-lg w-full max-w-3xl transform max-h-[90vh] flex flex-col shadow-2xl shadow-red-900/50">
-            <div class="flex justify-end p-2 absolute top-0 right-0 z-10">
-                <button id="closeDetailsModalButton" class="text-gray-400 hover:text-white text-3xl bg-black/50 rounded-full w-10 h-10 flex items-center justify-center">&times;</button>
-            </div>
-            <div id="detailsModalContent" class="overflow-y-auto">
-                <!-- Conteúdo dos detalhes será injetado aqui -->
-            </div>
+        <div class="flex gap-3 flex-wrap">
+          <button id="installPwa" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-semibold">Instalar PWA</button>
+          <label class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-semibold cursor-pointer" for="kmzInput">Importar KMZ</label>
+          <input id="kmzInput" type="file" accept=".kmz,.kml" class="hidden">
+          <button id="generateReport" class="px-4 py-2 bg-fuchsia-600 hover:bg-fuchsia-500 rounded-lg text-sm font-semibold">Gerar PDF</button>
         </div>
+      </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl mx-auto px-4 py-4 space-y-4">
+      <section class="grid md:grid-cols-3 gap-4">
+        <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 space-y-3">
+          <div class="flex justify-between items-center">
+            <h2 class="text-lg font-semibold">Cadastro Rápido</h2>
+            <span class="text-xs text-slate-400">Offline-first</span>
+          </div>
+          <form id="quickForm" class="space-y-3">
+            <div>
+              <label class="text-sm text-slate-400">Tipo</label>
+              <select id="entityType" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2">
+                <option value="central">Central</option>
+                <option value="fibra">Fibra</option>
+                <option value="caixa">Caixa de Emenda</option>
+                <option value="cliente">Cliente</option>
+                <option value="rompimento">Rompimento</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-sm text-slate-400">Nome/Identificador</label>
+              <input id="entityName" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2" placeholder="Ex: Estação Norte" />
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <input id="latInput" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2" placeholder="Lat" />
+              <input id="lngInput" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2" placeholder="Lng" />
+            </div>
+            <div id="fibraCapacityWrapper" class="hidden">
+              <label class="text-sm text-slate-400">Capacidade da Fibra</label>
+              <select id="fibraCapacity" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2">
+                <option>12FO</option><option>24FO</option><option>36FO</option><option>48FO</option><option>96FO</option><option>144FO</option>
+              </select>
+            </div>
+            <button class="w-full py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold" type="submit">Salvar Localmente</button>
+          </form>
+        </div>
+        <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 space-y-3">
+          <div class="flex justify-between items-center">
+            <h2 class="text-lg font-semibold">Checklist Mensal</h2>
+            <span class="text-xs text-amber-400" id="checklistStatus">Aguardando</span>
+          </div>
+          <div class="space-y-2 text-sm">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-slate-400">Fase R/S/T (V)</label>
+                <input id="voltageInput" type="number" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-2" placeholder="220">
+              </div>
+              <div>
+                <label class="text-slate-400">Tensão total (V)</label>
+                <input id="totalVoltage" type="number" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-2" placeholder="380">
+              </div>
+            </div>
+            <div>
+              <label class="text-slate-400">Ar-condicionado</label>
+              <div class="grid grid-cols-3 gap-2">
+                <input id="ac1" type="number" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-2" placeholder="AC1">
+                <input id="ac2" type="number" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-2" placeholder="AC2">
+                <input id="ac3" type="number" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-2" placeholder="AC3 (BRotas)">
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <input id="cleanOk" type="checkbox" class="h-4 w-4">
+              <label>Limpeza OK</label>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-slate-400">Nível combustível (%)</label>
+                <input id="fuelLevel" type="number" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-2" placeholder="75">
+              </div>
+              <div>
+                <label class="text-slate-400">Temperatura AC (°C)</label>
+                <input id="tempAc" type="number" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-2" placeholder="22">
+              </div>
+            </div>
+            <div>
+              <label class="text-slate-400">Fotos / Vídeos (timestamp + geolocalização)</label>
+              <input id="mediaInput" type="file" accept="image/*,video/*" capture="environment" multiple class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-2">
+            </div>
+            <button id="saveChecklist" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-semibold">Salvar checklist</button>
+          </div>
+        </div>
+        <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 space-y-3">
+          <div class="flex justify-between items-center">
+            <h2 class="text-lg font-semibold">Legenda & Filtros</h2>
+            <span class="text-xs text-slate-400">Mapa</span>
+          </div>
+          <div class="space-y-2 text-sm text-slate-300">
+            <div class="flex items-center gap-2"><span class="text-2xl">🏢</span><span>Estações</span></div>
+            <div class="flex items-center gap-2"><span class="text-2xl">📦</span><span>Caixas de emenda</span></div>
+            <div class="flex items-center gap-2"><span class="text-2xl">👤</span><span>Clientes</span></div>
+            <div class="flex items-center gap-2"><span class="text-2xl">🧵</span><span>Rotas de fibra</span></div>
+            <div class="pt-2 space-y-2">
+              <label class="text-slate-400">Filtrar status</label>
+              <select id="statusFilter" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2">
+                <option value="all">Todos</option>
+                <option value="operacional">Operacional</option>
+                <option value="manutencao">Manutenção</option>
+                <option value="rompida">Rompida</option>
+              </select>
+              <button id="toggleDistance" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-semibold">Medição de rota real</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid md:grid-cols-3 gap-4">
+        <div class="md:col-span-2 bg-slate-900/70 border border-slate-800 rounded-xl overflow-hidden">
+          <div id="map" class="h-[520px]"></div>
+        </div>
+        <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold">Caixas e Fusões</h2>
+            <button id="addFusion" class="text-sm bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded-lg">Nova conexão</button>
+          </div>
+          <div id="fusionDetails" class="text-sm text-slate-300 space-y-2 max-h-[460px] overflow-y-auto"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="bottomSheet" class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 p-4 rounded-t-2xl shadow-2xl shadow-black/40 bottom-sheet hidden">
+    <div class="max-w-5xl mx-auto space-y-2">
+      <div class="flex justify-between items-center">
+        <div>
+          <p class="text-xs text-slate-400">Informações da fibra</p>
+          <h3 id="sheetTitle" class="text-xl font-semibold"></h3>
+        </div>
+        <button id="closeSheet" class="text-slate-400 hover:text-white text-lg">&times;</button>
+      </div>
+      <div id="sheetContent" class="grid md:grid-cols-3 gap-3 text-sm"></div>
     </div>
+  </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // --- CONFIGURAÇÃO DA API ---
-            const TMDB_API_KEY = '952f29e3c0dafb854133b8b814ec76b6'; 
-            
-            // Chave da API do Google Gemini adicionada.
-            const GEMINI_API_KEY = 'AIzaSyDbFn51mvzvjuGpSo3LAvse046a7ci_6Mc';
+  <script src="https://unpkg.com/maplibre-gl@3.4.0/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+  <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://unpkg.com/togeojson@0.16.0/dist/togeojson.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script>
+    const map = new maplibregl.Map({
+      container: 'map',
+      style: 'https://demotiles.maplibre.org/style.json',
+      center: [-46.633, -23.55],
+      zoom: 12
+    });
 
-            const API_BASE_URL = 'https://api.themoviedb.org/3';
-            const IMG_BASE_URL = 'https://image.tmdb.org/t/p/w500';
-            const LANG = 'pt-BR';
+    const state = {
+      stations: [
+        { id: 'st1', name: 'Estação Central', coords: [-46.63, -23.54], status: 'operacional' },
+        { id: 'st2', name: 'Estação BRotas', coords: [-46.65, -23.56], status: 'manutencao' }
+      ],
+      spliceBoxes: [
+        { id: 'cx1', name: 'Caixa A', coords: [-46.64, -23.545], cables: [{ id: 'cb96', capacity: '96FO' }, { id: 'cb24', capacity: '24FO' }], status: 'operacional' },
+        { id: 'cx2', name: 'Caixa B', coords: [-46.635, -23.57], cables: [{ id: 'cb48', capacity: '48FO' }], status: 'rompida' }
+      ],
+      clients: [
+        { id: 'cl1', name: 'Cliente Alfa', coords: [-46.62, -23.55], status: 'operacional' },
+        { id: 'cl2', name: 'Cliente Beta', coords: [-46.66, -23.565], status: 'manutencao' }
+      ],
+      fibers: [
+        { id: 'fb1', name: 'Anel Principal', capacity: '96FO', start: 'st1', end: 'cx1', status: 'operacional', geometry: [[-46.63, -23.54], [-46.64, -23.545]] },
+        { id: 'fb2', name: 'Cabo Cliente Alfa', capacity: '24FO', start: 'cx1', end: 'cl1', status: 'operacional', geometry: [[-46.64, -23.545], [-46.62, -23.55]] },
+        { id: 'fb3', name: 'Anel Secundário', capacity: '48FO', start: 'st2', end: 'cx2', status: 'rompida', geometry: [[-46.65, -23.56], [-46.635, -23.57]] }
+      ],
+      fibersView: null,
+      fusions: [
+        { boxId: 'cx1', mapping: [ { fromCable: 'cb96', fiber: 1, toCable: 'cb96', toFiber: 1 }, { fromCable: 'cb96', fiber: 2, toCable: 'cb24', toFiber: 1 }, { fromCable: 'cb24', fiber: 2, toCable: null, toFiber: null } ] },
+        { boxId: 'cx2', mapping: [ { fromCable: 'cb48', fiber: 1, toCable: null, toFiber: null } ] }
+      ],
+      distanceMode: false,
+      selectedFiber: null,
+      kmzLayers: 0,
+      mediaWithGeo: []
+    };
 
-            // --- ESTADO DA APLICAÇÃO ---
-            const favoritesKey = 'cine-sugestoes-favorites-v3';
-            
-            const migrateFavorites = () => {
-                const oldFavorites = JSON.parse(localStorage.getItem('cine-sugestoes-favorites-v2'));
-                if (oldFavorites && oldFavorites['mini-series']) {
-                    const newFavorites = {
-                        filmes: oldFavorites.filmes || [],
-                        series: [...(oldFavorites.series || []), ...oldFavorites['mini-series']]
-                    };
-                    const uniqueSeries = Array.from(new Set(newFavorites.series.map(s => s.id))).map(id => newFavorites.series.find(s => s.id === id));
-                    newFavorites.series = uniqueSeries;
-                    localStorage.setItem(favoritesKey, JSON.stringify(newFavorites));
-                    localStorage.removeItem('cine-sugestoes-favorites-v2');
-                    return newFavorites;
-                }
-                return null;
-            };
+    const typeLookup = new Map();
+    state.stations.forEach(s => typeLookup.set(s.id, { type: 'Estação', name: s.name, coords: s.coords }));
+    state.spliceBoxes.forEach(c => typeLookup.set(c.id, { type: 'Caixa de Emenda', name: c.name, coords: c.coords }));
+    state.clients.forEach(c => typeLookup.set(c.id, { type: 'Cliente', name: c.name, coords: c.coords }));
 
-            const initialFavorites = migrateFavorites() || JSON.parse(localStorage.getItem(favoritesKey)) || { filmes: [], series: [] };
+    map.on('load', () => {
+      renderMarkers();
+      renderFibers();
+    });
 
-            const state = {
-                currentCategory: 'filmes',
-                favorites: initialFavorites,
-                searchTimeout: null,
-                genreMap: new Map()
-            };
+    function renderMarkers() {
+      const markers = [
+        ...state.stations.map(s => ({ ...s, icon: '🏢' })),
+        ...state.spliceBoxes.map(s => ({ ...s, icon: '📦' })),
+        ...state.clients.map(s => ({ ...s, icon: '👤' }))
+      ];
+      markers.forEach(m => {
+        const el = document.createElement('div');
+        el.className = 'text-2xl drop-shadow-lg';
+        el.textContent = m.icon;
+        el.addEventListener('click', () => handleMarkerClick(m));
+        new maplibregl.Marker(el).setLngLat(m.coords).addTo(map);
+      });
+    }
 
-            // --- ELEMENTOS DO DOM ---
-            const sidebar = document.getElementById('sidebar');
-            const menuButton = document.getElementById('menuButton');
-            const overlay = document.getElementById('overlay');
-            const navLinks = document.querySelectorAll('.nav-link');
-            const categoryTitle = document.getElementById('categoryTitle');
-            const mainContent = document.getElementById('main-content');
-            
-            const searchModal = document.getElementById('addFavoriteModal');
-            const closeSearchModalButton = document.getElementById('closeSearchModalButton');
-            const searchInput = document.getElementById('searchInput');
-            const searchResultsContainer = document.getElementById('searchResults');
+    const onFiberClick = (e) => {
+      const feature = e.features[0];
+      openBottomSheet(feature.properties);
+      if (state.distanceMode) {
+        state.selectedFiber = feature.properties;
+        measureFiberDistance(feature.properties);
+      }
+    };
 
-            const detailsModal = document.getElementById('detailsModal');
-            const closeDetailsModalButton = document.getElementById('closeDetailsModalButton');
-            const detailsModalContent = document.getElementById('detailsModalContent');
+    function renderFibers() {
+      const sourceId = 'fibers';
+      const fibers = state.fibersView || state.fibers;
+      if (map.getSource(sourceId)) map.removeLayer('fibers-layer'), map.removeSource(sourceId);
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: fibers.map(f => ({
+            type: 'Feature',
+            properties: f,
+            geometry: { type: 'LineString', coordinates: f.geometry }
+          }))
+        }
+      });
+      map.addLayer({
+        id: 'fibers-layer',
+        type: 'line',
+        source: sourceId,
+        paint: {
+          'line-width': 4,
+          'line-color': [
+            'match', ['get', 'capacity'],
+            '12FO', '#67e8f9', '24FO', '#22c55e', '36FO', '#a855f7', '48FO', '#f97316', '96FO', '#ef4444', '144FO', '#eab308', '#94a3b8'
+          ]
+        }
+      });
+      map.off('click', 'fibers-layer', onFiberClick);
+      map.on('click', 'fibers-layer', onFiberClick);
+    }
 
-            // --- FUNÇÕES DA API ---
-            const isTmdbApiKeyValid = () => TMDB_API_KEY && TMDB_API_KEY !== 'SUA_CHAVE_API_AQUI';
-            const isGeminiApiKeyValid = () => GEMINI_API_KEY && GEMINI_API_KEY !== 'COLE_SUA_CHAVE_DA_API_GEMINI_AQUI';
+    function openBottomSheet(props) {
+      const start = typeLookup.get(props.start);
+      const end = typeLookup.get(props.end);
+      document.getElementById('sheetTitle').textContent = `${props.name} (${props.capacity})`;
+      document.getElementById('sheetContent').innerHTML = `
+        <div class="bg-slate-800 rounded-lg p-3 border border-slate-700">
+          <p class="text-slate-400 text-xs">Ponto inicial</p>
+          <p class="font-semibold">${start?.type || 'N/D'} - ${start?.name || 'N/D'}</p>
+          <button class="mt-2 px-3 py-1 bg-blue-600 rounded-lg text-xs" onclick="navigateTo(${start?.coords})">Navegar</button>
+        </div>
+        <div class="bg-slate-800 rounded-lg p-3 border border-slate-700">
+          <p class="text-slate-400 text-xs">Ponto final</p>
+          <p class="font-semibold">${end?.type || 'N/D'} - ${end?.name || 'N/D'}</p>
+          <button class="mt-2 px-3 py-1 bg-blue-600 rounded-lg text-xs" onclick="navigateTo(${end?.coords})">Navegar</button>
+        </div>
+        <div class="bg-slate-800 rounded-lg p-3 border border-slate-700">
+          <p class="text-slate-400 text-xs">Status & Medição</p>
+          <p class="font-semibold">Capacidade: ${props.capacity}</p>
+          <p id="fiberDistance" class="text-sm text-slate-300"></p>
+        </div>`;
+      const sheet = document.getElementById('bottomSheet');
+      sheet.classList.remove('hidden');
+      requestAnimationFrame(() => sheet.classList.add('visible'));
+    }
 
-            async function fetchFromApi(endpoint, apiKey) {
-                if (!apiKey) return null;
-                try {
-                    const separator = endpoint.includes('?') ? '&' : '?';
-                    const url = `${API_BASE_URL}${endpoint}${separator}api_key=${apiKey}&language=${LANG}`;
-                    const response = await fetch(url);
-                    if (response.status === 404) {
-                        // ID inválido da IA, não é um erro crítico. Apenas ignore.
-                        return null;
-                    }
-                    if (!response.ok) {
-                        // Outro tipo de erro, este sim deve ser logado.
-                        throw new Error(`Falha na requisição para: ${endpoint} com status ${response.status}`);
-                    }
-                    return await response.json();
-                } catch (error) {
-                    console.error(error);
-                    return null;
-                }
-            }
+    document.getElementById('closeSheet').addEventListener('click', () => {
+      const sheet = document.getElementById('bottomSheet');
+      sheet.classList.remove('visible');
+      sheet.classList.add('hidden');
+    });
 
-            async function fetchGenres() {
-                const movieGenres = await fetchFromApi('/genre/movie/list', TMDB_API_KEY);
-                const tvGenres = await fetchFromApi('/genre/tv/list', TMDB_API_KEY);
-                if (movieGenres) movieGenres.genres.forEach(g => state.genreMap.set(g.id, g.name));
-                if (tvGenres) tvGenres.genres.forEach(g => state.genreMap.set(g.id, g.name));
-            }
-            
-            const getGenreNames = (genreIds) => (genreIds || []).map(id => state.genreMap.get(id)).filter(Boolean).join(', ');
+    function handleMarkerClick(marker) {
+      const box = state.spliceBoxes.find(c => c.id === marker.id);
+      if (box) renderFusion(box.id);
+    }
 
-            async function searchTMDb(query, category) {
-                const type = category === 'filmes' ? 'movie' : 'tv';
-                const endpoint = `/search/${type}?query=${encodeURIComponent(query)}`;
-                const data = await fetchFromApi(endpoint, TMDB_API_KEY);
-                return data ? data.results : [];
-            }
+    function renderFusion(boxId) {
+      const box = state.spliceBoxes.find(c => c.id === boxId);
+      const fusions = state.fusions.find(f => f.boxId === boxId)?.mapping || [];
+      const fusionContainer = document.getElementById('fusionDetails');
+      const capacityInfo = box.cables.map(c => `${c.id} (${c.capacity})`).join(', ');
+      fusionContainer.innerHTML = `
+        <div class="bg-slate-800 border border-slate-700 rounded-lg p-3">
+          <p class="text-sm font-semibold">${box.name}</p>
+          <p class="text-xs text-slate-400">Cabos: ${capacityInfo}</p>
+        </div>
+        <div class="space-y-2">
+          ${fusions.map(f => `<div class="p-2 bg-slate-800/80 rounded border border-slate-700">Fibra ${f.fiber} de ${f.fromCable} ⇄ ${f.toCable || '—'} ${f.toFiber || ''}</div>`).join('') || '<p class="text-slate-400">Nenhuma fusão registrada.</p>'}
+        </div>`;
+    }
+    renderFusion('cx1');
 
-            async function fetchSuggestions(itemId, category) {
-                const type = category === 'filmes' ? 'movie' : 'tv';
-                const data = await fetchFromApi(`/${type}/${itemId}/recommendations`, TMDB_API_KEY);
-                return data ? data.results.slice(0, 5) : [];
-            }
-            
-            async function fetchDetails(itemId, category) {
-                const type = category === 'filmes' ? 'movie' : 'tv';
-                return await fetchFromApi(`/${type}/${itemId}?append_to_response=watch/providers`, TMDB_API_KEY);
-            }
+    document.getElementById('addFusion').addEventListener('click', () => {
+      const boxId = prompt('ID da caixa (ex: cx1)');
+      const fromCable = prompt('Cabo de origem (ex: cb96)');
+      const fiber = Number(prompt('Fibra de origem (número)'));
+      const toCable = prompt('Cabo de destino (pode ficar vazio)') || null;
+      const toFiber = toCable ? Number(prompt('Fibra de destino')) : null;
+      const boxFusion = state.fusions.find(f => f.boxId === boxId);
+      if (boxFusion) boxFusion.mapping.push({ fromCable, fiber, toCable, toFiber });
+      else state.fusions.push({ boxId, mapping: [{ fromCable, fiber, toCable, toFiber }] });
+      renderFusion(boxId);
+    });
 
-            // --- FUNÇÕES PRINCIPAIS DE RENDERIZAÇÃO ---
-            const saveFavorites = () => localStorage.setItem(favoritesKey, JSON.stringify(state.favorites));
+    document.getElementById('statusFilter').addEventListener('change', (e) => {
+      const status = e.target.value;
+      state.fibersView = status === 'all' ? null : state.fibers.filter(f => f.status === status);
+      renderFibers();
+    });
 
-            const renderCategoryContent = async (category) => {
-                const container = document.getElementById(category);
-                if (!container) return;
-                const favorites = state.favorites[category];
-                let suggestions = [];
+    function measureFiberDistance(props) {
+      const line = turf.lineString(props.geometry);
+      const km = turf.length(line, { units: 'kilometers' });
+      document.getElementById('fiberDistance').textContent = `Comprimento real: ${km.toFixed(2)} km`;
+    }
 
-                if (favorites.length > 0) {
-                    const lastFavorite = favorites[favorites.length - 1];
-                    suggestions = await fetchSuggestions(lastFavorite.id, category);
-                }
+    document.getElementById('toggleDistance').addEventListener('click', () => {
+      state.distanceMode = !state.distanceMode;
+      document.getElementById('toggleDistance').textContent = state.distanceMode ? 'Selecionar pontos no mapa...' : 'Medição de rota real';
+    });
 
-                container.innerHTML = `
-                    <div class="mb-12">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-2xl font-bold text-slate-300">Meus Favoritos</h3>
-                            <button class="add-favorite-btn bg-red-700 hover:bg-red-600 text-white font-bold py-2 px-5 rounded-lg flex items-center shadow-[0_0_15px_rgba(185,28,28,0.4)] hover:shadow-[0_0_20px_rgba(185,28,28,0.6)]">
-                                <i class="fas fa-plus mr-2"></i> Adicionar
-                            </button>
-                        </div>
-                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
-                            ${favorites.length > 0 ? favorites.map(fav => createCard(fav, category, true)).join('') : '<p class="col-span-full text-gray-400">Busque e adicione seu primeiro favorito.</p>'}
-                        </div>
-                    </div>
-                    
-                    <!-- Seção da IA -->
-                    <div class="mb-12">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-2xl font-bold text-slate-300">Sugestão da IA</h3>
-                            <button id="ai-suggest-btn-${category}" class="bg-blue-700 hover:bg-blue-600 text-white font-bold py-2 px-5 rounded-lg flex items-center shadow-[0_0_15px_rgba(29,78,216,0.4)] hover:shadow-[0_0_20px_rgba(29,78,216,0.6)]" ${favorites.length === 0 ? 'disabled' : ''}>
-                                <i class="fas fa-wand-magic-sparkles mr-2"></i> Gerar Sugestão
-                            </button>
-                        </div>
-                        <div id="ai-suggestions-container-${category}" class="bg-gray-900/50 p-4 rounded-lg min-h-[100px]">
-                             <p class="text-gray-400 text-center">Adicione favoritos e clique em "Gerar Sugestão" para receber recomendações da nossa IA.</p>
-                        </div>
-                    </div>
+    function navigateTo(lng, lat) {
+      if (lng === undefined) return;
+      window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`);
+    }
 
-                    <div>
-                        <h3 class="text-2xl font-bold text-slate-300 mb-4">Recomendações Padrão</h3>
-                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
-                            ${suggestions.length > 0 ? suggestions.map(sug => createCard(sug, category, false)).join('') : '<p class="col-span-full text-gray-400">Adicione um favorito para receber sugestões.</p>'}
-                        </div>
-                    </div>
-                `;
-                container.querySelector('.add-favorite-btn').addEventListener('click', openSearchModal);
-                container.querySelector(`#ai-suggest-btn-${category}`).addEventListener('click', handleAiSuggestClick);
-            };
+    document.getElementById('kmzInput').addEventListener('change', async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      const buffer = await file.arrayBuffer();
+      if (file.name.endsWith('.kmz')) {
+        const zip = await JSZip.loadAsync(buffer);
+        const kmlFile = zip.file(/.kml$/i)[0];
+        const kmlText = await kmlFile.async('text');
+        addKmlToMap(kmlText, file.name);
+      } else {
+        const text = new TextDecoder().decode(buffer);
+        addKmlToMap(text, file.name);
+      }
+    });
 
-            const createCard = (item, category, isFavorite = false) => {
-                const title = item.title || item.name;
-                const posterPath = item.poster_path ? `${IMG_BASE_URL}${item.poster_path}` : 'https://placehold.co/500x750/111827/4B5563?text=Sem+Capa';
-                const rating = item.vote_average ? item.vote_average.toFixed(1) : 'N/A';
-                
-                const removeButtonHtml = isFavorite ? `
-                    <button class="remove-favorite-btn absolute top-2 left-2 bg-black/70 text-white rounded-full w-7 h-7 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10" data-id="${item.id}" data-category="${category}" title="Remover dos Favoritos">
-                        <i class="fas fa-times text-sm"></i>
-                    </button>
-                ` : '';
+    function addKmlToMap(kmlText, name) {
+      const dom = new DOMParser().parseFromString(kmlText, 'text/xml');
+      const geojson = toGeoJSON.kml(dom);
+      const sourceId = `kmz-${state.kmzLayers++}`;
+      map.addSource(sourceId, { type: 'geojson', data: geojson });
+      map.addLayer({ id: `${sourceId}-layer`, type: 'line', source: sourceId, paint: { 'line-color': '#22d3ee', 'line-width': 3 } });
+      map.addLayer({ id: `${sourceId}-points`, type: 'circle', source: sourceId, paint: { 'circle-radius': 6, 'circle-color': '#f472b6' }, filter: ['==', '$type', 'Point'] });
+      alert(`${name} importado e exibido no mapa.`);
+    }
 
-                return `
-                    <div class="bg-gray-900 rounded-lg overflow-hidden border border-gray-900 hover:border-slate-700 group cursor-pointer hover:shadow-2xl hover:shadow-slate-900/50 relative" data-id="${item.id}" data-category="${category}">
-                        ${removeButtonHtml}
-                        <div class="relative">
-                            <img src="${posterPath}" alt="${title}" class="w-full h-48 sm:h-64 object-cover">
-                            <div class="absolute top-2 right-2 bg-black/70 rounded-full px-2 py-1 text-xs font-bold flex items-center">
-                                <i class="fas fa-star text-yellow-400 mr-1"></i>
-                                <span>${rating}</span>
-                            </div>
-                        </div>
-                        <div class="p-3">
-                            <h4 class="font-bold text-md truncate text-gray-200">${title}</h4>
-                        </div>
-                    </div>
-                `;
-            };
+    document.getElementById('quickForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const type = document.getElementById('entityType').value;
+      const name = document.getElementById('entityName').value;
+      const lat = parseFloat(document.getElementById('latInput').value);
+      const lng = parseFloat(document.getElementById('lngInput').value);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        const icon = type === 'central' ? '🏢' : type === 'caixa' ? '📦' : type === 'cliente' ? '👤' : '🧵';
+        const el = document.createElement('div');
+        el.textContent = icon;
+        el.className = 'text-2xl drop-shadow-lg';
+        new maplibregl.Marker(el).setLngLat([lng, lat]).addTo(map);
+      }
+      localStorage.setItem('telecom-quick-entity', JSON.stringify({ type, name, lat, lng, capacity: document.getElementById('fibraCapacity').value }));
+      alert('Registro salvo localmente. Sincronize quando houver internet.');
+      e.target.reset();
+      document.getElementById('fibraCapacityWrapper').classList.add('hidden');
+    });
 
-            const renderDetailsModal = (details) => {
-                const providers = details['watch/providers']?.results?.BR;
-                const title = details.title || details.name;
-                const releaseDate = details.release_date || details.first_air_date;
-                const year = releaseDate ? new Date(releaseDate).getFullYear() : 'N/A';
-                const posterPath = details.poster_path ? `${IMG_BASE_URL}${details.poster_path}` : 'https://placehold.co/500x750/111827/4B5563?text=Sem+Capa';
-                const backdropPath = details.backdrop_path ? `https://image.tmdb.org/t/p/w1280${details.backdrop_path}` : '';
-                const rating = details.vote_average ? details.vote_average.toFixed(1) : 'N/A';
-                
-                const renderProviders = (providerList) => {
-                    if (!providerList || providerList.length === 0) return '';
-                    return providerList.map(p => `<img src="${IMG_BASE_URL}${p.logo_path}" alt="${p.provider_name}" class="w-12 h-12 rounded-lg" title="${p.provider_name}">`).join('');
-                };
+    document.getElementById('entityType').addEventListener('change', (e) => {
+      document.getElementById('fibraCapacityWrapper').classList.toggle('hidden', e.target.value !== 'fibra');
+    });
 
-                const streamingHtml = providers?.flatrate ? `<h4 class="font-semibold text-lg mb-2 text-slate-300">Assinatura</h4><div class="flex flex-wrap gap-3">${renderProviders(providers.flatrate)}</div>` : '<p class="text-gray-400">Não disponível em streamings por assinatura no momento.</p>';
+    document.getElementById('saveChecklist').addEventListener('click', async () => {
+      const voltage = Number(document.getElementById('voltageInput').value || 0);
+      const total = Number(document.getElementById('totalVoltage').value || 0);
+      const temp = Number(document.getElementById('tempAc').value || 0);
+      const fuel = Number(document.getElementById('fuelLevel').value || 0);
+      const status = (voltage < 210 || temp > 25 || fuel < 50) ? 'Não conforme' : 'OK';
+      document.getElementById('checklistStatus').textContent = status;
+      document.getElementById('checklistStatus').className = status === 'OK' ? 'text-xs text-emerald-400' : 'text-xs text-amber-400';
+      const files = document.getElementById('mediaInput').files;
+      state.mediaWithGeo = [];
+      if (navigator.geolocation && files.length) {
+        const position = await new Promise(resolve => navigator.geolocation.getCurrentPosition(resolve, resolve));
+        for (const file of files) {
+          state.mediaWithGeo.push({ name: file.name, time: new Date().toISOString(), coords: position.coords });
+        }
+      }
+      localStorage.setItem('telecom-checklist', JSON.stringify({ voltage, total, temp, fuel, media: state.mediaWithGeo }));
+      alert('Checklist salvo com validação e geolocalização.');
+    });
 
-                detailsModalContent.innerHTML = `
-                    <div class="relative">
-                        <img src="${backdropPath}" alt="" class="w-full h-48 md:h-64 object-cover opacity-10">
-                        <div class="absolute inset-0 bg-gradient-to-t from-black via-black/90 to-transparent"></div>
-                    </div>
-                    <div class="p-6 relative -mt-24">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div class="md:col-span-1">
-                                <img src="${posterPath}" alt="${title}" class="w-full rounded-lg -mt-12 border-4 border-gray-900">
-                            </div>
-                            <div class="md:col-span-2">
-                                <h2 class="text-3xl font-bold text-white">${title} <span class="text-gray-300 font-normal">(${year})</span></h2>
-                                <div class="flex items-center gap-4 my-2 text-gray-300">
-                                    <span><i class="fas fa-star text-yellow-400 mr-1"></i> ${rating}</span>
-                                    <span>${(details.genres || []).map(g => g.name).join(', ')}</span>
-                                </div>
-                                <h3 class="text-xl font-semibold mt-4 mb-2 text-red-700">Sinopse</h3>
-                                <p class="text-gray-300 max-h-32 overflow-y-auto">${details.overview || 'Sinopse não disponível.'}</p>
-                                
-                                <h3 class="text-xl font-semibold mt-6 mb-2 text-red-700">Onde Assistir</h3>
-                                <div>${streamingHtml}</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            };
+    document.getElementById('generateReport').addEventListener('click', () => {
+      const checklist = JSON.parse(localStorage.getItem('telecom-checklist') || '{}');
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.text('Relatório de Manutenção', 14, 16);
+      doc.text(`Tensão: ${checklist.voltage || '-'} / Total: ${checklist.total || '-'}`, 14, 26);
+      doc.text(`Combustível: ${checklist.fuel || '-'}% | Temperatura AC: ${checklist.temp || '-'}°C`, 14, 36);
+      doc.text('Mídias com localização:', 14, 46);
+      (checklist.media || []).forEach((m, idx) => {
+        doc.text(`${idx + 1}. ${m.name} @ ${m.coords?.latitude?.toFixed(5)}, ${m.coords?.longitude?.toFixed(5)} - ${m.time}`, 16, 56 + idx * 10);
+      });
+      doc.save('relatorio-manutencao.pdf');
+    });
 
-            // --- Funções de UI (Menu e Modais) ---
-            const openSidebar = () => { sidebar.classList.add('sidebar-open'); sidebar.classList.remove('sidebar-closed'); overlay.classList.remove('hidden'); };
-            const closeSidebar = () => { sidebar.classList.remove('sidebar-open'); sidebar.classList.add('sidebar-closed'); if (searchModal.classList.contains('modal-hidden') && detailsModal.classList.contains('modal-hidden')) overlay.classList.add('hidden'); };
-            const openSearchModal = () => { searchModal.classList.remove('modal-hidden'); searchModal.classList.add('modal-visible'); overlay.classList.remove('hidden'); setTimeout(() => searchInput.focus(), 100); };
-            const closeSearchModal = () => { searchModal.classList.add('modal-hidden'); searchModal.classList.remove('modal-visible'); if (detailsModal.classList.contains('modal-hidden') && sidebar.classList.contains('sidebar-closed')) overlay.classList.add('hidden'); searchInput.value = ''; searchResultsContainer.innerHTML = ''; };
-            const openDetailsModal = async (itemId, category) => {
-                detailsModal.classList.remove('modal-hidden'); detailsModal.classList.add('modal-visible');
-                overlay.classList.remove('hidden');
-                detailsModalContent.innerHTML = '<div class="flex justify-center p-10"><div class="loader"></div></div>';
-                const details = await fetchDetails(itemId, category);
-                if (details) { renderDetailsModal(details); } 
-                else { detailsModalContent.innerHTML = '<p class="text-center text-red-400">Não foi possível carregar os detalhes.</p>'; }
-            };
-            const closeDetailsModal = () => { detailsModal.classList.add('modal-hidden'); detailsModal.classList.remove('modal-visible'); if (searchModal.classList.contains('modal-hidden') && sidebar.classList.contains('sidebar-closed')) overlay.classList.add('hidden'); };
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
+    document.getElementById('installPwa').addEventListener('click', async () => {
+      if (!deferredPrompt) return alert('Instalação não disponível agora.');
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+    });
 
-            const switchCategory = (category) => {
-                state.currentCategory = category;
-                document.querySelectorAll('.category-content').forEach(el => el.classList.add('hidden'));
-                document.getElementById(category).classList.remove('hidden');
-                categoryTitle.textContent = { filmes: 'Filmes', series: 'Séries' }[category];
-                renderAllCategories();
-                closeSidebar();
-            };
-
-            const renderAllCategories = () => { ['filmes', 'series'].forEach(renderCategoryContent); };
-
-            // --- Lógica de Busca ---
-            const handleSearch = (e) => {
-                const query = e.target.value.trim();
-                clearTimeout(state.searchTimeout);
-                if (query.length < 2) { searchResultsContainer.innerHTML = ''; return; }
-                searchResultsContainer.innerHTML = '<div class="flex justify-center p-4"><div class="loader"></div></div>';
-                state.searchTimeout = setTimeout(async () => {
-                    const results = await searchTMDb(query, state.currentCategory);
-                    const favoriteIds = new Set(state.favorites[state.currentCategory].map(fav => fav.id));
-                    const filteredResults = results.filter(item => !favoriteIds.has(item.id));
-                    renderSearchResults(filteredResults);
-                }, 500);
-            };
-
-            const renderSearchResults = (results) => {
-                if (results.length === 0) { searchResultsContainer.innerHTML = '<p class="text-gray-400 p-3">Nenhum resultado encontrado.</p>'; return; }
-                searchResultsContainer.innerHTML = results.map(item => {
-                    const title = item.title || item.name;
-                    const posterPath = item.poster_path ? `${IMG_BASE_URL}${item.poster_path}` : 'https://placehold.co/80x120/111827/4B5563?text=?';
-                    const genres = getGenreNames(item.genre_ids || []);
-                    const escapedItem = JSON.stringify(item).replace(/'/g, '&#39;');
-                    return `
-                    <div class="search-result-item flex items-center p-2 rounded-md hover:bg-slate-800 cursor-pointer" data-item='${escapedItem}'>
-                        <img src="${posterPath}" class="w-10 h-14 object-cover rounded-sm mr-3">
-                        <div class="flex-1"><h5 class="font-semibold text-gray-200">${title}</h5><p class="text-sm text-gray-400">${genres}</p></div>
-                    </div>`;
-                }).join('');
-            };
-
-            const handleAddFromSearch = (e) => {
-                const resultItem = e.target.closest('.search-result-item');
-                if (!resultItem) return;
-                const itemToAdd = JSON.parse(resultItem.dataset.item.replace(/&#39;/g, "'"));
-                state.favorites[state.currentCategory].push(itemToAdd);
-                saveFavorites();
-                renderCategoryContent(state.currentCategory);
-                closeSearchModal();
-            };
-            
-            // --- LÓGICA DA IA ---
-            const handleAiSuggestClick = async (e) => {
-                const category = state.currentCategory;
-                const container = document.getElementById(`ai-suggestions-container-${category}`);
-                const button = e.target.closest('button');
-
-                if (!isGeminiApiKeyValid()) {
-                    container.innerHTML = `<p class="text-yellow-400 text-center">Por favor, adicione sua chave da API do Google Gemini no código para usar esta funcionalidade.</p>`;
-                    return;
-                }
-                
-                button.disabled = true;
-                container.innerHTML = '<div class="flex justify-center p-10"><div class="loader"></div></div>';
-
-                const favorites = state.favorites[category];
-                const favoriteTitles = favorites.map(f => f.title || f.name).join(', ');
-                const favoriteGenres = [...new Set(favorites.flatMap(f => f.genre_ids ? getGenreNames(f.genre_ids).split(', ') : []))].join(', ');
-
-                const prompt = `Aja como uma IA curadora de cinema de elite. Sua tarefa é analisar a lista de favoritos de um usuário e sugerir 5 novos ${category === 'filmes' ? 'filmes' : 'séries'} que sejam extremamente fiéis em gênero, tom, e estilo. É crucial que você NÃO sugira nenhum dos seguintes títulos que já estão na lista de favoritos: ${favoriteTitles}. Baseado nos favoritos (${favoriteTitles}) e nos gêneros preferidos (${favoriteGenres}), encontre 5 sugestões. Para cada uma, forneça o título original, o ID do TMDb (um ID válido e existente), e uma justificativa concisa que explique a conexão temática ou estilística com um item específico da lista de favoritos. Formate sua resposta como um JSON array, onde cada objeto tem "tmdbId", "title" e "justification".`;
-
-                try {
-                    const payload = {
-                        contents: [{ role: "user", parts: [{ text: prompt }] }],
-                        generationConfig: {
-                            responseMimeType: "application/json",
-                        }
-                    };
-                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${GEMINI_API_KEY}`;
-                    
-                    const response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (!response.ok) throw new Error("Falha ao contatar a IA.");
-
-                    const result = await response.json();
-                    const jsonText = result.candidates[0].content.parts[0].text;
-                    const suggestions = JSON.parse(jsonText);
-                    
-                    await renderAiSuggestions(suggestions, category);
-
-                } catch (error) {
-                    console.error("Erro na IA:", error);
-                    container.innerHTML = `<p class="text-red-400 text-center">Ocorreu um erro ao gerar as sugestões. Tente novamente.</p>`;
-                } finally {
-                    button.disabled = false;
-                }
-            };
-
-            const renderAiSuggestions = async (suggestions, category) => {
-                const container = document.getElementById(`ai-suggestions-container-${category}`);
-                
-                if (!suggestions || suggestions.length === 0) {
-                    container.innerHTML = '<p class="text-gray-400 text-center">A IA não conseguiu gerar sugestões. Tente novamente.</p>';
-                    return;
-                }
-
-                const detailPromises = suggestions.map(s => fetchDetails(s.tmdbId, category));
-                const detailedItems = await Promise.all(detailPromises);
-
-                const favoriteIds = new Set(state.favorites[category].map(fav => fav.id));
-                const finalSuggestions = detailedItems.filter(item => item && !favoriteIds.has(item.id));
-
-                if (finalSuggestions.length === 0) {
-                     container.innerHTML = '<p class="text-gray-400 text-center">A IA gerou sugestões, mas elas já estão nos seus favoritos. Tente adicionar mais títulos!</p>';
-                     return;
-                }
-
-                let html = `<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">`;
-                finalSuggestions.forEach(item => {
-                    html += createCard(item, category, false);
-                });
-                html += '</div>';
-                container.innerHTML = html;
-            };
-
-
-            // --- NOVA FUNÇÃO PARA REMOVER FAVORITO ---
-            const removeFavorite = (itemId, category) => {
-                const idToRemove = parseInt(itemId, 10);
-                state.favorites[category] = state.favorites[category].filter(item => item.id !== idToRemove);
-                saveFavorites();
-                renderCategoryContent(category);
-            };
-
-            // --- INICIALIZAÇÃO E EVENTOS ---
-            async function init() {
-                if (!isTmdbApiKeyValid()) { 
-                    mainContent.innerHTML = `<div class="bg-red-800 border border-red-600 text-white px-4 py-3 rounded-lg relative mb-6" role="alert">
-                    <strong class="font-bold">Erro Crítico!</strong>
-                    <span class="block sm:inline">A chave da API do TMDb não foi configurada corretamente no código.</span>
-                </div>`;
-                    return;
-                }
-                await fetchGenres();
-                renderAllCategories();
-                document.getElementById(state.currentCategory).classList.remove('hidden');
-                
-                menuButton.addEventListener('click', openSidebar);
-                overlay.addEventListener('click', () => { closeSidebar(); closeSearchModal(); closeDetailsModal(); });
-                navLinks.forEach(link => { link.addEventListener('click', (e) => { e.preventDefault(); switchCategory(e.currentTarget.dataset.category); }); });
-                
-                closeSearchModalButton.addEventListener('click', closeSearchModal);
-                closeDetailsModalButton.addEventListener('click', closeDetailsModal);
-                
-                searchInput.addEventListener('input', handleSearch);
-                searchResultsContainer.addEventListener('click', handleAddFromSearch);
-                
-                // Event listener atualizado para lidar com cliques nos cards e no botão de remover
-                mainContent.addEventListener('click', (e) => {
-                    const removeBtn = e.target.closest('.remove-favorite-btn');
-                    if (removeBtn) {
-                        e.stopPropagation(); // Impede que o modal de detalhes abra
-                        const { id, category } = removeBtn.dataset;
-                        removeFavorite(id, category);
-                        return;
-                    }
-
-                    const card = e.target.closest('.group');
-                    if (card) {
-                        openDetailsModal(card.dataset.id, card.dataset.category);
-                    }
-                });
-            };
-
-            init();
-        });
-    </script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js');
+    }
+  </script>
 </body>
 </html>
