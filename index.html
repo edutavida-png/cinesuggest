@@ -194,10 +194,11 @@
         { id: 'cl2', name: 'Cliente Beta', coords: [-46.66, -23.565], status: 'manutencao' }
       ],
       fibers: [
-        { id: 'fb1', name: 'Anel Principal', capacity: '96FO', start: 'st1', end: 'cx1', geometry: [[-46.63, -23.54], [-46.64, -23.545]] },
-        { id: 'fb2', name: 'Cabo Cliente Alfa', capacity: '24FO', start: 'cx1', end: 'cl1', geometry: [[-46.64, -23.545], [-46.62, -23.55]] },
-        { id: 'fb3', name: 'Anel Secundário', capacity: '48FO', start: 'st2', end: 'cx2', geometry: [[-46.65, -23.56], [-46.635, -23.57]] }
+        { id: 'fb1', name: 'Anel Principal', capacity: '96FO', start: 'st1', end: 'cx1', status: 'operacional', geometry: [[-46.63, -23.54], [-46.64, -23.545]] },
+        { id: 'fb2', name: 'Cabo Cliente Alfa', capacity: '24FO', start: 'cx1', end: 'cl1', status: 'operacional', geometry: [[-46.64, -23.545], [-46.62, -23.55]] },
+        { id: 'fb3', name: 'Anel Secundário', capacity: '48FO', start: 'st2', end: 'cx2', status: 'rompida', geometry: [[-46.65, -23.56], [-46.635, -23.57]] }
       ],
+      fibersView: null,
       fusions: [
         { boxId: 'cx1', mapping: [ { fromCable: 'cb96', fiber: 1, toCable: 'cb96', toFiber: 1 }, { fromCable: 'cb96', fiber: 2, toCable: 'cb24', toFiber: 1 }, { fromCable: 'cb24', fiber: 2, toCable: null, toFiber: null } ] },
         { boxId: 'cx2', mapping: [ { fromCable: 'cb48', fiber: 1, toCable: null, toFiber: null } ] }
@@ -233,14 +234,24 @@
       });
     }
 
+    const onFiberClick = (e) => {
+      const feature = e.features[0];
+      openBottomSheet(feature.properties);
+      if (state.distanceMode) {
+        state.selectedFiber = feature.properties;
+        measureFiberDistance(feature.properties);
+      }
+    };
+
     function renderFibers() {
       const sourceId = 'fibers';
+      const fibers = state.fibersView || state.fibers;
       if (map.getSource(sourceId)) map.removeLayer('fibers-layer'), map.removeSource(sourceId);
       map.addSource(sourceId, {
         type: 'geojson',
         data: {
           type: 'FeatureCollection',
-          features: state.fibers.map(f => ({
+          features: fibers.map(f => ({
             type: 'Feature',
             properties: f,
             geometry: { type: 'LineString', coordinates: f.geometry }
@@ -259,14 +270,8 @@
           ]
         }
       });
-      map.on('click', 'fibers-layer', (e) => {
-        const feature = e.features[0];
-        openBottomSheet(feature.properties);
-        if (state.distanceMode) {
-          state.selectedFiber = feature.properties;
-          measureFiberDistance(feature.properties);
-        }
-      });
+      map.off('click', 'fibers-layer', onFiberClick);
+      map.on('click', 'fibers-layer', onFiberClick);
     }
 
     function openBottomSheet(props) {
@@ -335,8 +340,7 @@
 
     document.getElementById('statusFilter').addEventListener('change', (e) => {
       const status = e.target.value;
-      const filtered = status === 'all' ? state.fibers : state.fibers.filter(f => f.status === status || (status === 'rompida' && f.capacity === '96FO'));
-      state.fibersView = filtered;
+      state.fibersView = status === 'all' ? null : state.fibers.filter(f => f.status === status);
       renderFibers();
     });
 
