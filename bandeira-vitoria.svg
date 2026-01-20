@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1088" height="914" viewBox="0 0 1088 914">
+  <rect width="1088" height="914" fill="#e6e6e6" />
+  <rect x="280" y="160" width="22" height="754" fill="#dcdcdc" />
+  <polygon points="302,250 860,300 820,520 342,560" fill="#d2d2d2" />
+  <polygon points="302,250 860,300 820,520 342,560" fill="#f5f5f5" transform="translate(-6,-6)" />
+  <text x="581" y="420" font-family="'Inter', 'Arial', sans-serif" font-size="72" font-weight="700" fill="#7a7a7a" text-anchor="middle">Vitória</text>
+</svg>
